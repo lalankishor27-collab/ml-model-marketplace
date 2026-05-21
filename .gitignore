@@ -1,0 +1,66 @@
+# ====================
+# Python
+# ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+.env
+
+# ====================
+# Node.js
+# ====================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ====================
+# IDE
+# ====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ====================
+# Database
+# ====================
+*.db
+*.sqlite3
+
+# ====================
+# ML Models & Uploads
+# ====================
+backend/trained_models/*.joblib
+backend/trained_models/*.pkl
+backend/trained_models/*.onnx
+backend/trained_models/session_*/
+backend/uploads/*.csv
+
+# ====================
+# Docker
+# ====================
+docker-compose.override.yml
+
+# ====================
+# Environment
+# ====================
+.env
+.env.local
+.env.production
+
+# ====================
+# Build
+# ====================
+frontend/dist/
