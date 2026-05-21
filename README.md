@@ -354,5 +354,6 @@ MIT License
 
 ## Author
 
-**MCA Final Year Project**  
+**LALAN kishor**
+MCA (AI&IOT)
 National Institute of Technology, Patna
