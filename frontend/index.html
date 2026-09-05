@@ -1,13 +1,689 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ML Model Marketplace</title>
-  </head>
-  <body class="bg-gray-50">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ML Model Marketplace | Auto-Train, Tune & Deploy ML Models</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  
+  <!-- Chart.js CDN for visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ================================================================= -->
+  <!-- 1. TOP NAVIGATION BAR                                             -->
+  <!-- ================================================================= -->
+  <header class="navbar">
+    <div class="nav-container">
+      <!-- Brand Logo -->
+      <a href="#" class="nav-brand" onclick="switchTab('dashboard')">
+        <div class="brand-icon">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">ML Marketplace</span>
+          <span class="brand-badge">AutoML Engine</span>
+        </div>
+      </a>
+
+      <!-- Navigation Links -->
+      <nav class="nav-links" id="nav-links">
+        <button class="nav-link active" data-tab="dashboard" onclick="switchTab('dashboard')">
+          <i class="fa-solid fa-gauge-high"></i> Dashboard
+        </button>
+        <button class="nav-link" data-tab="upload" onclick="switchTab('upload')">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Upload
+        </button>
+        <button class="nav-link" data-tab="train" onclick="switchTab('train')">
+          <i class="fa-solid fa-robot"></i> Train
+        </button>
+        <button class="nav-link" data-tab="tuning" onclick="switchTab('tuning')">
+          <i class="fa-solid fa-sliders"></i> Tuning
+        </button>
+        <button class="nav-link" data-tab="compare" onclick="switchTab('compare')">
+          <i class="fa-solid fa-chart-column"></i> Compare
+        </button>
+        <button class="nav-link" data-tab="visualizations" onclick="switchTab('visualizations')">
+          <i class="fa-solid fa-chart-pie"></i> Charts
+        </button>
+        <button class="nav-link" data-tab="deploy" onclick="switchTab('deploy')">
+          <i class="fa-solid fa-rocket"></i> Deploy
+        </button>
+        <button class="nav-link" data-tab="export" onclick="switchTab('export')">
+          <i class="fa-solid fa-download"></i> Export
+        </button>
+      </nav>
+
+      <!-- User Profile & Auth Button -->
+      <div class="nav-user-section" id="nav-user-section">
+        <div id="user-info" class="user-pill hidden">
+          <i class="fa-solid fa-circle-user"></i>
+          <span id="username-display">User</span>
+          <button onclick="handleLogout()" class="logout-btn" title="Logout">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+        <button id="auth-btn" onclick="openAuthModal()" class="btn btn-outline btn-sm">
+          <i class="fa-solid fa-lock"></i> Login
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Toast Banner -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Main Container -->
+  <main class="main-content">
+
+    <!-- ================================================================= -->
+    <!-- 2. AUTHENTICATION MODAL / CARD                                    -->
+    <!-- ================================================================= -->
+    <div id="auth-modal" class="modal-backdrop hidden">
+      <div class="glass-card modal-card">
+        <button class="modal-close" onclick="closeAuthModal()">&times;</button>
+        
+        <div class="auth-tabs">
+          <button id="tab-btn-login" class="auth-tab-btn active" onclick="toggleAuthMode('login')">Login</button>
+          <button id="tab-btn-register" class="auth-tab-btn" onclick="toggleAuthMode('register')">Register Account</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" class="auth-form" onsubmit="handleLoginSubmit(event)">
+          <h2>Welcome Back</h2>
+          <p class="subtitle">Enter your credentials to access your ML workspace</p>
+
+          <div class="form-group">
+            <label><i class="fa-solid fa-envelope"></i> Email Address</label>
+            <input type="email" id="login-email" class="form-control" placeholder="developer@example.com" required>
+          </div>
+
+          <div class="form-group">
+            <label><i class="fa-solid fa-key"></i> Password</label>
+            <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="fa-solid fa-right-to-bracket"></i> Login to Workspace
+          </button>
+        </form>
+
+        <!-- Register Form -->
+        <form id="register-form" class="auth-form hidden" onsubmit="handleRegisterSubmit(event)">
+          <h2>Create Account</h2>
+          <p class="subtitle">Sign up to auto-train, compare, and deploy models</p>
+
+          <div class="form-group">
+            <label><i class="fa-solid fa-user"></i> Full Username</label>
+            <input type="text" id="reg-username" class="form-control" placeholder="John Doe" required>
+          </div>
+
+          <div class="form-group">
+            <label><i class="fa-solid fa-envelope"></i> Email Address</label>
+            <input type="email" id="reg-email" class="form-control" placeholder="developer@example.com" required>
+          </div>
+
+          <div class="form-group">
+            <label><i class="fa-solid fa-key"></i> Password</label>
+            <input type="password" id="reg-password" class="form-control" placeholder="••••••••" required>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">
+            <i class="fa-solid fa-user-plus"></i> Create Account
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- 3. DASHBOARD TAB                                                 -->
+    <!-- ================================================================= -->
+    <section id="tab-dashboard" class="tab-view active">
+      <div class="hero-header">
+        <div>
+          <h1>Machine Learning Control Center</h1>
+          <p class="hero-subtitle">Upload datasets, automatically train 7+ algorithms, fine-tune hyperparameters, and deploy REST APIs.</p>
+        </div>
+        <button class="btn btn-primary" onclick="switchTab('upload')">
+          <i class="fa-solid fa-plus"></i> Upload New Dataset
+        </button>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="glass-card stat-card">
+          <div class="stat-icon icon-blue">
+            <i class="fa-solid fa-database"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-datasets">0</span>
+            <span class="stat-label">Uploaded Datasets</span>
+          </div>
+        </div>
+
+        <div class="glass-card stat-card">
+          <div class="stat-icon icon-purple">
+            <i class="fa-solid fa-brain"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-sessions">0</span>
+            <span class="stat-label">Training Sessions</span>
+          </div>
+        </div>
+
+        <div class="glass-card stat-card">
+          <div class="stat-icon icon-green">
+            <i class="fa-solid fa-network-wired"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-deployed">0</span>
+            <span class="stat-label">Deployed REST APIs</span>
+          </div>
+        </div>
+
+        <div class="glass-card stat-card">
+          <div class="stat-icon icon-amber">
+            <i class="fa-solid fa-award"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-best-model">N/A</span>
+            <span class="stat-label">Top Performing Model</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workflow Shortcuts -->
+      <div class="section-title">
+        <h3><i class="fa-solid fa-bolt"></i> AutoML Workflow Stages</h3>
+      </div>
+      <div class="workflow-grid">
+        <div class="glass-card workflow-card" onclick="switchTab('upload')">
+          <div class="step-num">01</div>
+          <i class="fa-solid fa-file-csv step-icon"></i>
+          <h4>1. Upload CSV</h4>
+          <p>Import CSV data, preview table rows, inspect missing values and column data types.</p>
+        </div>
+
+        <div class="glass-card workflow-card" onclick="switchTab('train')">
+          <div class="step-num">02</div>
+          <i class="fa-solid fa-gears step-icon"></i>
+          <h4>2. Auto-Train</h4>
+          <p>Train Random Forest, XGBoost, SVM, KNN, Decision Trees, and Linear models simultaneously.</p>
+        </div>
+
+        <div class="glass-card workflow-card" onclick="switchTab('compare')">
+          <div class="step-num">03</div>
+          <i class="fa-solid fa-chart-simple step-icon"></i>
+          <h4>3. Compare & Tune</h4>
+          <p>Analyze Accuracy, F1, R², RMSE metrics and tune hyperparameters using GridSearch.</p>
+        </div>
+
+        <div class="glass-card workflow-card" onclick="switchTab('deploy')">
+          <div class="step-num">04</div>
+          <i class="fa-solid fa-rocket step-icon"></i>
+          <h4>4. Deploy & Predict</h4>
+          <p>Deploy best models with 1-click REST API endpoints and make real-time live predictions.</p>
+        </div>
+      </div>
+
+      <!-- Recent Sessions Table -->
+      <div class="glass-card table-card mt-6">
+        <div class="card-header">
+          <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Training Sessions</h3>
+          <button class="btn btn-sm btn-outline" onclick="loadDashboardStats()">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Session ID</th>
+                <th>Dataset ID</th>
+                <th>Task Type</th>
+                <th>Target Column</th>
+                <th>Status</th>
+                <th>Best Model</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="dashboard-sessions-tbody">
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">No training sessions recorded yet. Upload a dataset to get started!</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 4. UPLOAD TAB                                                    -->
+    <!-- ================================================================= -->
+    <section id="tab-upload" class="tab-view">
+      <div class="hero-header">
+        <div>
+          <h1>Dataset Management</h1>
+          <p class="hero-subtitle">Upload CSV datasets to inspect features, missing data, and target variables.</p>
+        </div>
+      </div>
+
+      <div class="grid-2col">
+        <!-- File Dropzone Form -->
+        <div class="glass-card">
+          <h3><i class="fa-solid fa-upload"></i> Upload CSV File</h3>
+          <p class="text-muted mb-4">Supported format: <code>.csv</code> files up to 50MB.</p>
+
+          <div class="dropzone" id="csv-dropzone" onclick="document.getElementById('file-input').click()">
+            <i class="fa-solid fa-file-csv dropzone-icon"></i>
+            <p><strong>Click to browse</strong> or drag & drop CSV file here</p>
+            <span class="file-chosen-text" id="file-name-display">No file selected</span>
+            <input type="file" id="file-input" accept=".csv" class="hidden" onchange="handleFileSelect(event)">
+          </div>
+
+          <button id="upload-btn" class="btn btn-primary btn-block mt-4" onclick="uploadDatasetFile()" disabled>
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload & Analyze Dataset
+          </button>
+        </div>
+
+        <!-- Available Datasets List -->
+        <div class="glass-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-database"></i> Available Datasets</h3>
+            <button class="btn btn-sm btn-outline" onclick="loadDatasetsList()">
+              <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+          </div>
+          <div id="datasets-list-container" class="datasets-list">
+            <p class="text-muted">Loading datasets...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dataset Inspection & Preview Table -->
+      <div id="dataset-preview-container" class="glass-card mt-6 hidden">
+        <div class="card-header">
+          <div>
+            <h3 id="preview-filename">Dataset Preview</h3>
+            <span class="badge badge-info" id="preview-shape">0 rows x 0 columns</span>
+          </div>
+          <button class="btn btn-sm btn-primary" onclick="proceedToTrainFromPreview()">
+            <i class="fa-solid fa-arrow-right"></i> Proceed to Training
+          </button>
+        </div>
+
+        <!-- Column Metadata Summary Badges -->
+        <div class="metadata-badges mt-3" id="preview-metadata-badges"></div>
+
+        <!-- Data Preview Table -->
+        <div class="table-responsive mt-4">
+          <table class="custom-table" id="preview-table">
+            <thead id="preview-thead"></thead>
+            <tbody id="preview-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 5. TRAIN TAB                                                     -->
+    <!-- ================================================================= -->
+    <section id="tab-train" class="tab-view">
+      <div class="hero-header">
+        <div>
+          <h1>AutoML Model Training Engine</h1>
+          <p class="hero-subtitle">Select target variable, pick ML algorithms, and train all models with one click.</p>
+        </div>
+      </div>
+
+      <div class="grid-2col">
+        <!-- Configuration Card -->
+        <div class="glass-card">
+          <h3><i class="fa-solid fa-sliders"></i> Training Configuration</h3>
+
+          <!-- Select Dataset -->
+          <div class="form-group mt-4">
+            <label><i class="fa-solid fa-database"></i> Select Dataset</label>
+            <select id="train-dataset-select" class="form-control" onchange="onTrainDatasetChange()">
+              <option value="">-- Choose Dataset --</option>
+            </select>
+          </div>
+
+          <!-- Select Target Column -->
+          <div class="form-group">
+            <label><i class="fa-solid fa-bullseye"></i> Target Column (Label to Predict)</label>
+            <select id="train-target-select" class="form-control">
+              <option value="">-- Select Dataset First --</option>
+            </select>
+          </div>
+
+          <!-- Test Size Slider -->
+          <div class="form-group">
+            <div class="flex-justify">
+              <label><i class="fa-solid fa-scissors"></i> Test Data Split</label>
+              <span id="test-size-val" class="badge badge-purple">20% Test / 80% Train</span>
+            </div>
+            <input type="range" id="test-size-range" min="0.1" max="0.5" step="0.05" value="0.2" class="form-range" oninput="document.getElementById('test-size-val').innerText = `${Math.round(this.value*100)}% Test / ${100 - Math.round(this.value*100)}% Train`">
+          </div>
+
+          <!-- Algorithms Selection -->
+          <div class="form-group">
+            <label><i class="fa-solid fa-cubes"></i> ML Algorithms to Train</label>
+            <div class="checkbox-grid mt-2">
+              <label class="checkbox-label"><input type="checkbox" name="algo-check" value="Random Forest" checked> Random Forest</label>
+              <label class="checkbox-label"><input type="checkbox" name="algo-check" value="XGBoost" checked> XGBoost</label>
+              <label class="checkbox-label"><input type="checkbox" name="algo-check" value="Gradient Boosting" checked> Gradient Boosting</label>
+              <label class="checkbox-label"><input type="checkbox" name="algo-check" value="Decision Tree" checked> Decision Tree</label>
+              <label class="checkbox-label"><input type="checkbox" name="algo-check" value="Logistic Regression" checked> Logistic / Linear Reg</label>
+              <label class="checkbox-label"><input type="checkbox" name="algo-check" value="SVM" checked> Support Vector Machine</label>
+              <label class="checkbox-label"><input type="checkbox" name="algo-check" value="KNN" checked> K-Nearest Neighbors</label>
+            </div>
+          </div>
+
+          <!-- Launch Button -->
+          <button id="launch-train-btn" class="btn btn-primary btn-block btn-lg mt-4" onclick="launchAutoMLTraining()">
+            <i class="fa-solid fa-rocket"></i> Train All Models
+          </button>
+        </div>
+
+        <!-- Training Status & Results Summary -->
+        <div class="glass-card">
+          <h3><i class="fa-solid fa-microchip"></i> Training Status & Results</h3>
+
+          <!-- Loading Spinner Box -->
+          <div id="training-spinner-box" class="loading-box hidden">
+            <div class="spinner"></div>
+            <h4>Training Machine Learning Models...</h4>
+            <p class="text-muted">Fitting algorithms, calculating cross-validation metrics, and identifying best model...</p>
+          </div>
+
+          <!-- Results Summary Output -->
+          <div id="training-results-output" class="training-results-box">
+            <p class="text-muted">No active training session running. Configure settings on the left and click "Train All Models".</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session Results Table -->
+      <div id="training-results-table-card" class="glass-card mt-6 hidden">
+        <div class="card-header">
+          <h3><i class="fa-solid fa-trophy"></i> Model Leaderboard & Evaluation Metrics</h3>
+          <button class="btn btn-sm btn-primary" onclick="switchTab('compare')">
+            <i class="fa-solid fa-chart-bar"></i> View Visual Charts
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr id="metrics-table-header">
+                <th>Model Name</th>
+                <th>Score</th>
+                <th>Training Time</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="metrics-table-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 6. TUNING TAB                                                    -->
+    <!-- ================================================================= -->
+    <section id="tab-tuning" class="tab-view">
+      <div class="hero-header">
+        <div>
+          <h1>Hyperparameter Tuning Studio</h1>
+          <p class="hero-subtitle">Optimize model performance using GridSearchCV & RandomizedSearchCV with Cross-Validation.</p>
+        </div>
+      </div>
+
+      <div class="grid-2col">
+        <!-- Tuning Options Form -->
+        <div class="glass-card">
+          <h3><i class="fa-solid fa-sliders"></i> Tuning Parameters</h3>
+
+          <!-- Select Dataset -->
+          <div class="form-group mt-4">
+            <label><i class="fa-solid fa-database"></i> Select Dataset</label>
+            <select id="tune-dataset-select" class="form-control" onchange="onTuneDatasetChange()">
+              <option value="">-- Choose Dataset --</option>
+            </select>
+          </div>
+
+          <!-- Select Target Column -->
+          <div class="form-group">
+            <label><i class="fa-solid fa-bullseye"></i> Target Column</label>
+            <select id="tune-target-select" class="form-control">
+              <option value="">-- Select Dataset First --</option>
+            </select>
+          </div>
+
+          <!-- Select Model to Tune -->
+          <div class="form-group">
+            <label><i class="fa-solid fa-brain"></i> Model Architecture</label>
+            <select id="tune-model-select" class="form-control">
+              <option value="Random Forest">Random Forest</option>
+              <option value="XGBoost">XGBoost</option>
+              <option value="Gradient Boosting">Gradient Boosting</option>
+              <option value="SVM">Support Vector Machine (SVM)</option>
+              <option value="Decision Tree">Decision Tree</option>
+              <option value="KNN">K-Nearest Neighbors (KNN)</option>
+            </select>
+          </div>
+
+          <!-- Search Strategy -->
+          <div class="form-group">
+            <label><i class="fa-solid fa-magnifying-glass"></i> Search Strategy</label>
+            <select id="tune-search-method" class="form-control">
+              <option value="random">RandomizedSearchCV (Fast)</option>
+              <option value="grid">GridSearchCV (Exhaustive)</option>
+            </select>
+          </div>
+
+          <!-- CV Folds -->
+          <div class="form-group">
+            <label><i class="fa-solid fa-layer-group"></i> Cross-Validation Folds (K-Fold)</label>
+            <select id="tune-cv-folds" class="form-control">
+              <option value="3">3-Fold Cross Validation</option>
+              <option value="5" selected>5-Fold Cross Validation</option>
+              <option value="10">10-Fold Cross Validation</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary btn-block mt-4" onclick="executeHyperparameterTuning()">
+            <i class="fa-solid fa-bolt"></i> Execute Tuning Search
+          </button>
+        </div>
+
+        <!-- Tuning Results Output -->
+        <div class="glass-card">
+          <h3><i class="fa-solid fa-circle-check"></i> Optimized Hyperparameters & Metrics</h3>
+
+          <div id="tuning-loading-box" class="loading-box hidden">
+            <div class="spinner"></div>
+            <h4>Running Hyperparameter Search...</h4>
+            <p class="text-muted">Evaluating cross-validation folds across parameter search space...</p>
+          </div>
+
+          <div id="tuning-results-box" class="tuning-output">
+            <p class="text-muted">Select a model and search method, then click "Execute Tuning Search".</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 7. COMPARE TAB                                                   -->
+    <!-- ================================================================= -->
+    <section id="tab-compare" class="tab-view">
+      <div class="hero-header">
+        <div>
+          <h1>Model Comparison & Benchmarks</h1>
+          <p class="hero-subtitle">Visual side-by-side performance benchmarks across accuracy, F1, precision, recall, R², and RMSE.</p>
+        </div>
+      </div>
+
+      <!-- Benchmark Bar Chart Card -->
+      <div class="glass-card">
+        <div class="card-header">
+          <h3><i class="fa-solid fa-chart-column"></i> Metric Comparison Overview</h3>
+          <div class="flex-gap">
+            <span class="badge badge-purple" id="compare-task-badge">Task Type: Classification</span>
+          </div>
+        </div>
+        <div class="chart-container mt-4">
+          <canvas id="compare-bar-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 8. CHARTS / VISUALIZATIONS TAB                                   -->
+    <!-- ================================================================= -->
+    <section id="tab-visualizations" class="tab-view">
+      <div class="hero-header">
+        <div>
+          <h1>Advanced ML Visualizations</h1>
+          <p class="hero-subtitle">Feature importance rankings, metrics radar charts, and confusion matrix diagnostics.</p>
+        </div>
+      </div>
+
+      <div class="grid-2col">
+        <!-- Feature Importance Chart Card -->
+        <div class="glass-card">
+          <h3><i class="fa-solid fa-chart-bar"></i> Feature Importance Ranking</h3>
+          <p class="text-muted mb-4">Relative weight of input features in model predictions.</p>
+          <div class="chart-container-sm">
+            <canvas id="feature-importance-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Radar Metrics Breakdown Card -->
+        <div class="glass-card">
+          <h3><i class="fa-solid fa-compass"></i> Model Radar Performance</h3>
+          <p class="text-muted mb-4">Multi-dimensional evaluation metric overlay.</p>
+          <div class="chart-container-sm">
+            <canvas id="radar-metrics-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 9. DEPLOY TAB                                                    -->
+    <!-- ================================================================= -->
+    <section id="tab-deploy" class="tab-view">
+      <div class="hero-header">
+        <div>
+          <h1>REST API Deployment & Testing</h1>
+          <p class="hero-subtitle">Deploy trained models as live REST endpoint microservices and execute predictions.</p>
+        </div>
+      </div>
+
+      <div class="grid-2col">
+        <!-- Deployed Models List -->
+        <div class="glass-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-server"></i> Trained Models & Deployments</h3>
+            <button class="btn btn-sm btn-outline" onclick="loadModelsForDeploy()">
+              <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+          </div>
+          <div id="deploy-models-list" class="models-list mt-3">
+            <p class="text-muted">Loading models list...</p>
+          </div>
+        </div>
+
+        <!-- Live Prediction Form -->
+        <div class="glass-card">
+          <h3><i class="fa-solid fa-vial"></i> Live REST Prediction Test</h3>
+          <p class="text-muted mb-4" id="predict-active-model-text">Select a deployed model from the left list to test inference.</p>
+
+          <form id="prediction-form" onsubmit="executeLivePrediction(event)">
+            <div id="prediction-inputs-container" class="prediction-inputs">
+              <p class="text-muted">No model selected for testing.</p>
+            </div>
+
+            <button type="submit" id="predict-btn" class="btn btn-primary btn-block mt-4" disabled>
+              <i class="fa-solid fa-play"></i> Send Live API Prediction
+            </button>
+          </form>
+
+          <!-- Prediction Result Callout Card -->
+          <div id="prediction-result-box" class="result-box mt-4 hidden">
+            <h4>Prediction Output</h4>
+            <div class="result-value" id="prediction-value">-</div>
+            <div class="confidence-badge" id="prediction-confidence-badge"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- 10. EXPORT TAB                                                   -->
+    <!-- ================================================================= -->
+    <section id="tab-export" class="tab-view">
+      <div class="hero-header">
+        <div>
+          <h1>Model Export & Integration</h1>
+          <p class="hero-subtitle">Download serialized binaries (`.joblib`, `.pkl`, `.onnx`) and generate integration code.</p>
+        </div>
+      </div>
+
+      <div class="grid-2col">
+        <!-- Select Model & Downloads -->
+        <div class="glass-card">
+          <h3><i class="fa-solid fa-file-export"></i> Model File Downloads</h3>
+          
+          <div class="form-group mt-4">
+            <label><i class="fa-solid fa-cube"></i> Select Model to Export</label>
+            <select id="export-model-select" class="form-control" onchange="onExportModelChange()">
+              <option value="">-- Choose Model --</option>
+            </select>
+          </div>
+
+          <div class="download-options mt-4">
+            <button class="btn btn-outline btn-block" onclick="downloadSelectedModel('joblib')">
+              <i class="fa-solid fa-download"></i> Download Joblib Format (.joblib)
+            </button>
+            <button class="btn btn-outline btn-block" onclick="downloadSelectedModel('pickle')">
+              <i class="fa-solid fa-download"></i> Download Pickle Format (.pkl)
+            </button>
+            <button class="btn btn-outline btn-block" onclick="downloadSelectedModel('onnx')">
+              <i class="fa-solid fa-download"></i> Download ONNX Format (.onnx)
+            </button>
+          </div>
+        </div>
+
+        <!-- Python Code Integration Snippet -->
+        <div class="glass-card">
+          <div class="card-header">
+            <h3><i class="fa-solid fa-code"></i> Python Integration Code</h3>
+            <button class="btn btn-sm btn-outline" onclick="copyCodeSnippet()">
+              <i class="fa-solid fa-copy"></i> Copy Code
+            </button>
+          </div>
+          <pre class="code-block"><code id="code-snippet-display"># Select a model on the left to view ready-to-run Python inference code.</code></pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- External JavaScript Modules -->
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+</body>
 </html>
