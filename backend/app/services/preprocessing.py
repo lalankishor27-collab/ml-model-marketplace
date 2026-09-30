@@ -86,20 +86,28 @@ class DataPreprocessor:
 
         # Handle missing values
         for col in X.columns:
-            if X[col].dtype in ['object', 'category']:
-                X[col].fillna(X[col].mode()[0] if not X[col].mode().empty else 'unknown', inplace=True)
+            if pd.api.types.is_numeric_dtype(X[col]):
+                med = X[col].median()
+                X[col] = X[col].fillna(med if pd.notna(med) else 0)
             else:
-                X[col].fillna(X[col].median(), inplace=True)
+                mode_val = X[col].mode()
+                fill_val = mode_val[0] if not mode_val.empty else 'unknown'
+                X[col] = X[col].fillna(fill_val)
 
         # Encode categorical features
         for col in X.columns:
-            if X[col].dtype in ['object', 'category']:
+            if not pd.api.types.is_numeric_dtype(X[col]):
                 le = LabelEncoder()
                 X[col] = le.fit_transform(X[col].astype(str))
                 self.label_encoders[col] = le
 
-        # Encode target if categorical
-        if y.dtype in ['object', 'category']:
+        # Encode target if non-numeric or missing
+        if pd.api.types.is_numeric_dtype(y):
+            med_y = y.median()
+            y = y.fillna(med_y if pd.notna(med_y) else 0)
+        else:
+            mode_y = y.mode()
+            y = y.fillna(mode_y[0] if not mode_y.empty else 'unknown')
             le = LabelEncoder()
             y = le.fit_transform(y.astype(str))
             self.label_encoders[target_column] = le
@@ -127,7 +135,7 @@ class DataPreprocessor:
 
         # Encode categorical features
         for col in df.columns:
-            if col in self.label_encoders and df[col].dtype in ['object', 'category']:
+            if col in self.label_encoders:
                 df[col] = self.label_encoders[col].transform(df[col].astype(str))
 
         # Scale
