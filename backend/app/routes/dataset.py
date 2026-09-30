@@ -19,7 +19,7 @@ async def upload_dataset(file: UploadFile = File(...), db: Session = Depends(get
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
     # Save file
-    filepath = os.path.join(UPLOAD_DIR, file.filename)
+    filepath = os.path.abspath(os.path.join(UPLOAD_DIR, file.filename))
     with open(filepath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
@@ -27,11 +27,11 @@ async def upload_dataset(file: UploadFile = File(...), db: Session = Depends(get
     preprocessor = DataPreprocessor()
     try:
         df = preprocessor.load_dataset(filepath)
+        info = preprocessor.get_dataset_info(df)
     except Exception as e:
-        os.remove(filepath)
-        raise HTTPException(status_code=400, detail=f"Error reading file: {str(e)}")
-
-    info = preprocessor.get_dataset_info(df)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        raise HTTPException(status_code=400, detail=f"Error analyzing CSV file: {str(e)}")
 
     # Save to database
     dataset = Dataset(
@@ -77,11 +77,23 @@ def get_dataset(dataset_id: int, db: Session = Depends(get_db)):
     """Get dataset details and preview."""
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+        raise HTTPException(status_code=404, detail="Dataset record not found")
+
+    if not os.path.exists(dataset.filepath):
+        # Try relative fallback
+        rel_path = os.path.join(UPLOAD_DIR, dataset.filename)
+        if os.path.exists(rel_path):
+            dataset.filepath = os.path.abspath(rel_path)
+            db.commit()
+        else:
+            raise HTTPException(status_code=404, detail=f"Dataset file '{dataset.filename}' is missing from server storage.")
 
     preprocessor = DataPreprocessor()
-    df = preprocessor.load_dataset(dataset.filepath)
-    info = preprocessor.get_dataset_info(df)
+    try:
+        df = preprocessor.load_dataset(dataset.filepath)
+        info = preprocessor.get_dataset_info(df)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error reading dataset file: {str(e)}")
 
     return {
         "id": dataset.id,

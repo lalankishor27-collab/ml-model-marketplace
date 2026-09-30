@@ -5,6 +5,21 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 
+def sanitize_for_json(obj: Any) -> Any:
+    """Recursively replace NaN and Inf float values with None for valid JSON serialization."""
+    if isinstance(obj, float):
+        if np.isnan(obj) or np.isinf(obj):
+            return None
+        return obj
+    elif isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(v) for v in obj]
+    elif pd.isna(obj):
+        return None
+    return obj
+
+
 class DataPreprocessor:
     """Handles dataset loading, cleaning, and feature engineering."""
 
@@ -22,15 +37,17 @@ class DataPreprocessor:
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
 
-        return {
+        raw_info = {
             "columns": df.columns.tolist(),
             "dtypes": {col: str(dtype) for col, dtype in df.dtypes.items()},
             "shape": list(df.shape),
             "sample_data": df.head(5).to_dict(orient="records"),
-            "missing_values": df.isnull().sum().to_dict(),
+            "missing_values": {col: int(count) for col, count in df.isnull().sum().to_dict().items()},
             "numeric_columns": numeric_cols,
             "categorical_columns": categorical_cols
         }
+
+        return sanitize_for_json(raw_info)
 
     def detect_task_type(self, df: pd.DataFrame, target_column: str) -> str:
         """Auto-detect if it's a classification or regression task."""
