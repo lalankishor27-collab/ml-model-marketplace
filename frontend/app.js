@@ -2,17 +2,189 @@
  * ============================================================================
  * MAIN FRONTEND APPLICATION LOGIC - ML MODEL MARKETPLACE
  * ============================================================================
- * Beginner-Friendly Vanilla JavaScript file controlling UI state, event handling,
- * DOM updates, Chart.js rendering, and API communication.
- * 
- * Educational Notes for Interview Preparation:
- * - Uses standard DOM methods: document.getElementById(), querySelectorAll()
- * - Uses async/await for smooth API calls without page reloads.
- * - Uses Chart.js canvas instances for interactive data visualization.
+ * Self-Contained Classic Vanilla JavaScript App.
+ * Includes both API Service Layer and UI Controller.
  */
 
 // ============================================================================
-// 1. GLOBAL STATE OBJECT
+// 1. BACKEND API SERVICE LAYER
+// ============================================================================
+var API_BASE = window.API_BASE || '/api';
+
+/**
+ * Core HTTP Fetch Helper Function
+ */
+async function fetchAPI(endpoint, options = {}) {
+  const headers = options.headers || {};
+
+  const token = localStorage.getItem('token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (options.body && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    options.body = JSON.stringify(options.body);
+  }
+
+  options.headers = headers;
+
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, options);
+
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'HTTP Error ' + response.status }));
+      throw new Error(errorData.detail || 'Request failed');
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json();
+    }
+    return response;
+  } catch (error) {
+    console.error(`API Error [${endpoint}]:`, error.message);
+    throw error;
+  }
+}
+
+// Authentication API Endpoints
+async function apiRegister(username, email, password) {
+  return await fetchAPI('/auth/register', {
+    method: 'POST',
+    body: { username, email, password }
+  });
+}
+
+async function apiLogin(email, password) {
+  const formData = new URLSearchParams();
+  formData.append('username', email);
+  formData.append('password', password);
+
+  const response = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: 'Login failed' }));
+    throw new Error(err.detail || 'Invalid email or password');
+  }
+
+  return await response.json();
+}
+
+async function apiGetMe() {
+  return await fetchAPI('/auth/me');
+}
+
+// Dataset API Endpoints
+async function apiUploadDataset(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return await fetchAPI('/dataset/upload', {
+    method: 'POST',
+    body: formData
+  });
+}
+
+async function apiGetDatasets() {
+  return await fetchAPI('/dataset/list');
+}
+
+async function apiGetDataset(datasetId) {
+  return await fetchAPI(`/dataset/${datasetId}`);
+}
+
+async function apiDeleteDataset(datasetId) {
+  return await fetchAPI(`/dataset/${datasetId}`, {
+    method: 'DELETE'
+  });
+}
+
+// Model Training API Endpoints
+async function apiTrainModels(config) {
+  return await fetchAPI('/training/train', {
+    method: 'POST',
+    body: config
+  });
+}
+
+async function apiGetTrainingSessions() {
+  return await fetchAPI('/training/sessions');
+}
+
+async function apiGetTrainingSession(sessionId) {
+  return await fetchAPI(`/training/sessions/${sessionId}`);
+}
+
+// Hyperparameter Tuning API Endpoints
+async function apiTuneModel(config) {
+  return await fetchAPI('/tuning/tune', {
+    method: 'POST',
+    body: config
+  });
+}
+
+// Model Management & Deployment API Endpoints
+async function apiGetModels() {
+  return await fetchAPI('/models/list');
+}
+
+async function apiDeployModel(trainingSessionId, modelName) {
+  return await fetchAPI('/models/deploy', {
+    method: 'POST',
+    body: { training_session_id: trainingSessionId, model_name: modelName }
+  });
+}
+
+async function apiUndeployModel(modelId) {
+  return await fetchAPI(`/models/undeploy/${modelId}`, {
+    method: 'POST'
+  });
+}
+
+async function apiGetDeployedModels() {
+  return await fetchAPI('/models/deployed/list');
+}
+
+// Live Prediction API Endpoints
+async function apiPredict(modelId, features) {
+  return await fetchAPI(`/predict/${modelId}`, {
+    method: 'POST',
+    body: { model_id: modelId, features: features }
+  });
+}
+
+// Model Export API Endpoints
+async function apiGetExportInfo(modelId) {
+  return await fetchAPI(`/export/info/${modelId}`);
+}
+
+async function apiDownloadModel(modelId, format = 'joblib') {
+  const token = localStorage.getItem('token');
+  const response = await fetch(`${API_BASE}/export/download/${modelId}?format=${format}`, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  });
+
+  if (!response.ok) throw new Error('Download failed');
+  return await response.blob();
+}
+
+async function apiGetCodeSnippet(modelId) {
+  return await fetchAPI(`/export/code-snippet/${modelId}`);
+}
+
+
+// ============================================================================
+// 2. GLOBAL STATE OBJECT
 // ============================================================================
 const state = {
   currentUser: null,             // Currently authenticated user object
@@ -30,40 +202,13 @@ const state = {
 };
 
 // ============================================================================
-// 2. APP INITIALIZATION & LIFECYCLE
-// ============================================================================
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('🚀 ML Model Marketplace Initialized!');
-  
-  // Step 1: Check if user session exists in localStorage
-  const savedUser = localStorage.getItem('user');
-  const savedToken = localStorage.getItem('token');
-  if (savedUser && savedToken) {
-    try {
-      state.currentUser = JSON.parse(savedUser);
-      updateUserUI();
-    } catch (e) {
-      handleLogout();
-    }
-  }
-
-  // Step 2: Load initial datasets and dashboard stats
-  loadDashboardStats();
-  loadDatasetsList();
-
-  // Step 3: Default view is Dashboard
-  switchTab('dashboard');
-});
-
-// ============================================================================
 // 3. UI NOTIFICATIONS & NAVIGATION TABS
 // ============================================================================
 
-/**
- * Display clean toast notification banner
- */
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
+  if (!container) return;
+
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   toast.innerHTML = `
@@ -72,16 +217,15 @@ function showToast(message, type = 'info') {
   `;
   container.appendChild(toast);
 
-  // Auto remove after 3.5 seconds
   setTimeout(() => {
     toast.remove();
   }, 3500);
 }
 
-/**
- * Switch active navigation tab panel
- */
 function switchTab(tabId) {
+  console.log(`[Navigation] Switching to tab: ${tabId}`);
+  if (!tabId) return;
+
   // Step 1: Deactivate all navigation links and tab views
   document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-view').forEach(view => view.classList.remove('active'));
@@ -93,15 +237,19 @@ function switchTab(tabId) {
   if (activeBtn) activeBtn.classList.add('active');
   if (activeView) activeView.classList.add('active');
 
-  // Step 3: Trigger view-specific data refresh
-  if (tabId === 'dashboard') loadDashboardStats();
-  if (tabId === 'upload') loadDatasetsList();
-  if (tabId === 'train') populateTrainDatasetSelect();
-  if (tabId === 'tuning') populateTuneDatasetSelect();
-  if (tabId === 'compare') renderCompareCharts();
-  if (tabId === 'visualizations') renderVisualizations();
-  if (tabId === 'deploy') loadModelsForDeploy();
-  if (tabId === 'export') loadModelsForExport();
+  // Step 3: Trigger view-specific data refresh safely
+  try {
+    if (tabId === 'dashboard') loadDashboardStats();
+    if (tabId === 'upload') loadDatasetsList();
+    if (tabId === 'train') populateTrainDatasetSelect();
+    if (tabId === 'tuning') populateTuneDatasetSelect();
+    if (tabId === 'compare') renderCompareCharts();
+    if (tabId === 'visualizations') renderVisualizations();
+    if (tabId === 'deploy') loadModelsForDeploy();
+    if (tabId === 'export') loadModelsForExport();
+  } catch (err) {
+    console.error('Error refreshing tab content:', err);
+  }
 }
 
 // ============================================================================
@@ -109,11 +257,13 @@ function switchTab(tabId) {
 // ============================================================================
 
 function openAuthModal() {
-  document.getElementById('auth-modal').classList.remove('hidden');
+  const modal = document.getElementById('auth-modal');
+  if (modal) modal.classList.remove('hidden');
 }
 
 function closeAuthModal() {
-  document.getElementById('auth-modal').classList.add('hidden');
+  const modal = document.getElementById('auth-modal');
+  if (modal) modal.classList.add('hidden');
 }
 
 function toggleAuthMode(mode) {
@@ -123,22 +273,24 @@ function toggleAuthMode(mode) {
   const tabReg = document.getElementById('tab-btn-register');
 
   if (mode === 'login') {
-    loginForm.classList.remove('hidden');
-    regForm.classList.add('hidden');
-    tabLogin.classList.add('active');
-    tabReg.classList.remove('active');
+    if (loginForm) loginForm.classList.remove('hidden');
+    if (regForm) regForm.classList.add('hidden');
+    if (tabLogin) tabLogin.classList.add('active');
+    if (tabReg) tabReg.classList.remove('active');
   } else {
-    loginForm.classList.add('hidden');
-    regForm.classList.remove('hidden');
-    tabLogin.classList.remove('active');
-    tabReg.classList.add('active');
+    if (loginForm) loginForm.classList.add('hidden');
+    if (regForm) regForm.classList.remove('hidden');
+    if (tabLogin) tabLogin.classList.remove('active');
+    if (tabReg) tabReg.classList.add('active');
   }
 }
 
 async function handleLoginSubmit(event) {
-  event.preventDefault();
-  const email = document.getElementById('login-email').value;
-  const password = document.getElementById('login-password').value;
+  if (event) event.preventDefault();
+  const email = document.getElementById('login-email')?.value;
+  const password = document.getElementById('login-password')?.value;
+
+  if (!email || !password) return;
 
   try {
     const data = await apiLogin(email, password);
@@ -156,16 +308,17 @@ async function handleLoginSubmit(event) {
 }
 
 async function handleRegisterSubmit(event) {
-  event.preventDefault();
-  const username = document.getElementById('reg-username').value;
-  const email = document.getElementById('reg-email').value;
-  const password = document.getElementById('reg-password').value;
+  if (event) event.preventDefault();
+  const username = document.getElementById('reg-username')?.value;
+  const email = document.getElementById('reg-email')?.value;
+  const password = document.getElementById('reg-password')?.value;
+
+  if (!username || !email || !password) return;
 
   try {
     await apiRegister(username, email, password);
     showToast('Account created successfully! Logging in...', 'success');
     
-    // Auto login after registration
     const data = await apiLogin(email, password);
     localStorage.setItem('token', data.access_token);
     state.currentUser = { username: data.username, email: data.email };
@@ -193,12 +346,12 @@ function updateUserUI() {
   const usernameDisplay = document.getElementById('username-display');
 
   if (state.currentUser) {
-    userInfo.classList.remove('hidden');
-    authBtn.classList.add('hidden');
-    usernameDisplay.innerText = state.currentUser.username || state.currentUser.email;
+    if (userInfo) userInfo.classList.remove('hidden');
+    if (authBtn) authBtn.classList.add('hidden');
+    if (usernameDisplay) usernameDisplay.innerText = state.currentUser.username || state.currentUser.email;
   } else {
-    userInfo.classList.add('hidden');
-    authBtn.classList.remove('hidden');
+    if (userInfo) userInfo.classList.add('hidden');
+    if (authBtn) authBtn.classList.remove('hidden');
   }
 }
 
@@ -208,7 +361,6 @@ function updateUserUI() {
 
 async function loadDashboardStats() {
   try {
-    // Step 1: Fetch datasets, sessions, and deployed models
     const [datasets, sessions, models] = await Promise.all([
       apiGetDatasets().catch(() => []),
       apiGetTrainingSessions().catch(() => []),
@@ -219,12 +371,15 @@ async function loadDashboardStats() {
     state.models = models;
     state.deployedModels = models.filter(m => m.is_deployed);
 
-    // Step 2: Update metric hero cards
-    document.getElementById('stat-datasets').innerText = datasets.length;
-    document.getElementById('stat-sessions').innerText = sessions.length;
-    document.getElementById('stat-deployed').innerText = state.deployedModels.length;
+    const statDatasets = document.getElementById('stat-datasets');
+    const statSessions = document.getElementById('stat-sessions');
+    const statDeployed = document.getElementById('stat-deployed');
+    const statBestModel = document.getElementById('stat-best-model');
 
-    // Determine top performing model across sessions
+    if (statDatasets) statDatasets.innerText = datasets.length;
+    if (statSessions) statSessions.innerText = sessions.length;
+    if (statDeployed) statDeployed.innerText = state.deployedModels.length;
+
     let bestModelName = 'N/A';
     if (sessions.length > 0) {
       const completed = sessions.filter(s => s.status === 'completed' && s.best_model);
@@ -232,30 +387,31 @@ async function loadDashboardStats() {
         bestModelName = completed[completed.length - 1].best_model;
       }
     }
-    document.getElementById('stat-best-model').innerText = bestModelName;
+    if (statBestModel) statBestModel.innerText = bestModelName;
 
-    // Step 3: Render Recent Sessions Table
     const tbody = document.getElementById('dashboard-sessions-tbody');
-    if (sessions.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No training sessions recorded yet. Upload a dataset to get started!</td></tr>`;
-      return;
-    }
+    if (tbody) {
+      if (sessions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No training sessions recorded yet. Upload a dataset to get started!</td></tr>`;
+        return;
+      }
 
-    tbody.innerHTML = sessions.slice(-5).reverse().map(s => `
-      <tr>
-        <td><code>#SESSION-${s.id}</code></td>
-        <td>Dataset #${s.dataset_id}</td>
-        <td><span class="badge badge-info">${s.task_type || 'N/A'}</span></td>
-        <td><code>${s.target_column || 'N/A'}</code></td>
-        <td><span class="badge ${s.status === 'completed' ? 'badge-success' : 'badge-warning'}">${s.status}</span></td>
-        <td><strong>${s.best_model || 'Processing...'}</strong></td>
-        <td>
-          <button class="btn btn-sm btn-outline" onclick="viewSessionDetails(${s.id})">
-            <i class="fa-solid fa-eye"></i> View Results
-          </button>
-        </td>
-      </tr>
-    `).join('');
+      tbody.innerHTML = sessions.slice(-5).reverse().map(s => `
+        <tr>
+          <td><code>#SESSION-${s.id}</code></td>
+          <td>Dataset #${s.dataset_id}</td>
+          <td><span class="badge badge-info">${s.task_type || 'N/A'}</span></td>
+          <td><code>${s.target_column || 'N/A'}</code></td>
+          <td><span class="badge ${s.status === 'completed' ? 'badge-success' : 'badge-warning'}">${s.status}</span></td>
+          <td><strong>${s.best_model || 'Processing...'}</strong></td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="viewSessionDetails(${s.id})">
+              <i class="fa-solid fa-eye"></i> View Results
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
   } catch (err) {
     console.error('Error loading dashboard:', err);
   }
@@ -271,8 +427,11 @@ function handleFileSelect(event) {
   const file = event.target.files[0];
   if (file) {
     selectedUploadFile = file;
-    document.getElementById('file-name-display').innerText = `Selected File: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-    document.getElementById('upload-btn').disabled = false;
+    const nameDisplay = document.getElementById('file-name-display');
+    const uploadBtn = document.getElementById('upload-btn');
+
+    if (nameDisplay) nameDisplay.innerText = `Selected File: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    if (uploadBtn) uploadBtn.disabled = false;
   }
 }
 
@@ -280,30 +439,35 @@ async function uploadDatasetFile() {
   if (!selectedUploadFile) return;
 
   const uploadBtn = document.getElementById('upload-btn');
-  uploadBtn.disabled = true;
-  uploadBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading & Analyzing...`;
+  if (uploadBtn) {
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading & Analyzing...`;
+  }
 
   try {
     const response = await apiUploadDataset(selectedUploadFile);
     showToast(`Dataset "${response.filename}" uploaded successfully!`, 'success');
     
-    // Reset file picker
     selectedUploadFile = null;
-    document.getElementById('file-name-display').innerText = 'No file selected';
-    uploadBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Upload & Analyze Dataset`;
+    const nameDisplay = document.getElementById('file-name-display');
+    if (nameDisplay) nameDisplay.innerText = 'No file selected';
+    if (uploadBtn) uploadBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Upload & Analyze Dataset`;
 
-    // Render dataset preview
     renderDatasetPreview(response);
     loadDatasetsList();
   } catch (err) {
     showToast(err.message, 'error');
-    uploadBtn.disabled = false;
-    uploadBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Upload & Analyze Dataset`;
+    if (uploadBtn) {
+      uploadBtn.disabled = false;
+      uploadBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Upload & Analyze Dataset`;
+    }
   }
 }
 
 async function loadDatasetsList() {
   const container = document.getElementById('datasets-list-container');
+  if (!container) return;
+
   try {
     const datasets = await apiGetDatasets();
     state.datasets = datasets;
@@ -349,41 +513,45 @@ async function inspectDataset(datasetId) {
 
 function renderDatasetPreview(dataset) {
   const container = document.getElementById('dataset-preview-container');
+  if (!container) return;
   container.classList.remove('hidden');
 
-  document.getElementById('preview-filename').innerText = dataset.filename;
+  const filenameEl = document.getElementById('preview-filename');
+  const shapeEl = document.getElementById('preview-shape');
+  if (filenameEl) filenameEl.innerText = dataset.filename;
   
   const preview = dataset.preview || {};
   const shape = preview.shape || [dataset.rows, dataset.columns];
-  document.getElementById('preview-shape').innerText = `${shape[0]} Rows x ${shape[1]} Columns`;
+  if (shapeEl) shapeEl.innerText = `${shape[0]} Rows x ${shape[1]} Columns`;
 
-  // Render Metadata Badges
   const badgesContainer = document.getElementById('preview-metadata-badges');
   const numericCols = preview.numeric_columns || [];
   const catCols = preview.categorical_columns || [];
 
-  badgesContainer.innerHTML = `
-    <span class="badge badge-info">${numericCols.length} Numeric Features</span>
-    <span class="badge badge-purple">${catCols.length} Categorical Features</span>
-  `;
+  if (badgesContainer) {
+    badgesContainer.innerHTML = `
+      <span class="badge badge-info">${numericCols.length} Numeric Features</span>
+      <span class="badge badge-purple">${catCols.length} Categorical Features</span>
+    `;
+  }
 
-  // Render Table Header & Sample Rows
   const columns = preview.columns || [];
   const sampleData = preview.sample_data || [];
 
   const thead = document.getElementById('preview-thead');
   const tbody = document.getElementById('preview-tbody');
 
-  thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
-  
-  if (sampleData.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="${columns.length}">No preview data available</td></tr>`;
-    return;
-  }
+  if (thead) thead.innerHTML = `<tr>${columns.map(col => `<th>${col}</th>`).join('')}</tr>`;
+  if (tbody) {
+    if (sampleData.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="${columns.length}">No preview data available</td></tr>`;
+      return;
+    }
 
-  tbody.innerHTML = sampleData.map(row => `
-    <tr>${columns.map(col => `<td>${row[col] !== undefined ? row[col] : ''}</td>`).join('')}</tr>
-  `).join('');
+    tbody.innerHTML = sampleData.map(row => `
+      <tr>${columns.map(col => `<td>${row[col] !== undefined ? row[col] : ''}</td>`).join('')}</tr>
+    `).join('');
+  }
 }
 
 async function deleteDatasetAction(datasetId) {
@@ -391,7 +559,8 @@ async function deleteDatasetAction(datasetId) {
   try {
     await apiDeleteDataset(datasetId);
     showToast('Dataset deleted', 'info');
-    document.getElementById('dataset-preview-container').classList.add('hidden');
+    const container = document.getElementById('dataset-preview-container');
+    if (container) container.classList.add('hidden');
     loadDatasetsList();
     loadDashboardStats();
   } catch (err) {
@@ -409,6 +578,8 @@ function proceedToTrainFromPreview() {
 
 async function populateTrainDatasetSelect() {
   const select = document.getElementById('train-dataset-select');
+  if (!select) return;
+
   try {
     const datasets = await apiGetDatasets();
     state.datasets = datasets;
@@ -421,9 +592,11 @@ async function populateTrainDatasetSelect() {
 }
 
 async function onTrainDatasetChange() {
-  const datasetId = document.getElementById('train-dataset-select').value;
+  const select = document.getElementById('train-dataset-select');
   const targetSelect = document.getElementById('train-target-select');
+  if (!select || !targetSelect) return;
 
+  const datasetId = select.value;
   if (!datasetId) {
     targetSelect.innerHTML = `<option value="">-- Select Dataset First --</option>`;
     return;
@@ -441,11 +614,10 @@ async function onTrainDatasetChange() {
 }
 
 async function launchAutoMLTraining() {
-  const datasetId = document.getElementById('train-dataset-select').value;
-  const targetColumn = document.getElementById('train-target-select').value;
-  const testSize = parseFloat(document.getElementById('test-size-range').value);
+  const datasetId = document.getElementById('train-dataset-select')?.value;
+  const targetColumn = document.getElementById('train-target-select')?.value;
+  const testSize = parseFloat(document.getElementById('test-size-range')?.value || 0.2);
 
-  // Selected Algorithms
   const selectedAlgos = Array.from(document.querySelectorAll('input[name="algo-check"]:checked')).map(cb => cb.value);
 
   if (!datasetId || !targetColumn) {
@@ -457,9 +629,9 @@ async function launchAutoMLTraining() {
   const spinnerBox = document.getElementById('training-spinner-box');
   const resultsBox = document.getElementById('training-results-output');
 
-  launchBtn.disabled = true;
-  spinnerBox.classList.remove('hidden');
-  resultsBox.innerHTML = '';
+  if (launchBtn) launchBtn.disabled = true;
+  if (spinnerBox) spinnerBox.classList.remove('hidden');
+  if (resultsBox) resultsBox.innerHTML = '';
 
   try {
     const requestPayload = {
@@ -473,14 +645,14 @@ async function launchAutoMLTraining() {
     state.trainingSession = session;
 
     showToast(`Training complete! Best Model: ${session.best_model}`, 'success');
-    spinnerBox.classList.add('hidden');
-    launchBtn.disabled = false;
+    if (spinnerBox) spinnerBox.classList.add('hidden');
+    if (launchBtn) launchBtn.disabled = false;
 
     renderTrainingResults(session);
     loadDashboardStats();
   } catch (err) {
-    spinnerBox.classList.add('hidden');
-    launchBtn.disabled = false;
+    if (spinnerBox) spinnerBox.classList.add('hidden');
+    if (launchBtn) launchBtn.disabled = false;
     showToast(`Training failed: ${err.message}`, 'error');
   }
 }
@@ -488,37 +660,40 @@ async function launchAutoMLTraining() {
 function renderTrainingResults(session) {
   const resultsBox = document.getElementById('training-results-output');
   const tableCard = document.getElementById('training-results-table-card');
-  tableCard.classList.remove('hidden');
+  if (tableCard) tableCard.classList.remove('hidden');
 
-  resultsBox.innerHTML = `
-    <div class="glass-card stat-card mb-3" style="background:rgba(16, 185, 129, 0.1); border-color:var(--accent-emerald);">
-      <i class="fa-solid fa-trophy" style="font-size:2rem; color:var(--accent-emerald);"></i>
-      <div>
-        <span class="text-muted" style="font-size:0.8rem; uppercase;">Best Performing Model</span>
-        <h3 style="color:var(--accent-emerald); font-size:1.4rem;">${session.best_model}</h3>
-        <span class="badge badge-info">Task: ${session.task_type}</span>
+  if (resultsBox) {
+    resultsBox.innerHTML = `
+      <div class="glass-card stat-card mb-3" style="background:rgba(16, 185, 129, 0.1); border-color:var(--accent-emerald);">
+        <i class="fa-solid fa-trophy" style="font-size:2rem; color:var(--accent-emerald);"></i>
+        <div>
+          <span class="text-muted" style="font-size:0.8rem; uppercase;">Best Performing Model</span>
+          <h3 style="color:var(--accent-emerald); font-size:1.4rem;">${session.best_model}</h3>
+          <span class="badge badge-info">Task: ${session.task_type}</span>
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  }
 
-  // Render Table Rows
   const tbody = document.getElementById('metrics-table-tbody');
   const results = session.results || [];
 
-  tbody.innerHTML = results.map(r => {
-    const score = session.task_type === 'classification' 
-      ? `Accuracy: ${(r.accuracy * 100).toFixed(2)}% (F1: ${r.f1_score})`
-      : `R² Score: ${r.r2_score} (RMSE: ${r.rmse})`;
+  if (tbody) {
+    tbody.innerHTML = results.map(r => {
+      const score = session.task_type === 'classification' 
+        ? `Accuracy: ${(r.accuracy * 100).toFixed(2)}% (F1: ${r.f1_score})`
+        : `R² Score: ${r.r2_score} (RMSE: ${r.rmse})`;
 
-    return `
-      <tr>
-        <td><strong>${r.model_name}</strong> ${r.model_name === session.best_model ? '<span class="badge badge-success">BEST</span>' : ''}</td>
-        <td><code>${score}</code></td>
-        <td>${r.training_time}s</td>
-        <td><span class="badge badge-success">Trained</span></td>
-      </tr>
-    `;
-  }).join('');
+      return `
+        <tr>
+          <td><strong>${r.model_name}</strong> ${r.model_name === session.best_model ? '<span class="badge badge-success">BEST</span>' : ''}</td>
+          <td><code>${score}</code></td>
+          <td>${r.training_time}s</td>
+          <td><span class="badge badge-success">Trained</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
 }
 
 async function viewSessionDetails(sessionId) {
@@ -538,6 +713,8 @@ async function viewSessionDetails(sessionId) {
 
 async function populateTuneDatasetSelect() {
   const select = document.getElementById('tune-dataset-select');
+  if (!select) return;
+
   try {
     const datasets = await apiGetDatasets();
     select.innerHTML = `<option value="">-- Choose Dataset --</option>` + 
@@ -548,10 +725,10 @@ async function populateTuneDatasetSelect() {
 }
 
 async function onTuneDatasetChange() {
-  const datasetId = document.getElementById('tune-dataset-select').value;
+  const datasetId = document.getElementById('tune-dataset-select')?.value;
   const targetSelect = document.getElementById('tune-target-select');
 
-  if (!datasetId) return;
+  if (!datasetId || !targetSelect) return;
   try {
     const dataset = await apiGetDataset(datasetId);
     const columns = dataset.preview?.columns || [];
@@ -562,11 +739,11 @@ async function onTuneDatasetChange() {
 }
 
 async function executeHyperparameterTuning() {
-  const datasetId = document.getElementById('tune-dataset-select').value;
-  const targetColumn = document.getElementById('tune-target-select').value;
-  const modelName = document.getElementById('tune-model-select').value;
-  const searchMethod = document.getElementById('tune-search-method').value;
-  const cvFolds = parseInt(document.getElementById('tune-cv-folds').value);
+  const datasetId = document.getElementById('tune-dataset-select')?.value;
+  const targetColumn = document.getElementById('tune-target-select')?.value;
+  const modelName = document.getElementById('tune-model-select')?.value;
+  const searchMethod = document.getElementById('tune-search-method')?.value;
+  const cvFolds = parseInt(document.getElementById('tune-cv-folds')?.value || 5);
 
   if (!datasetId || !targetColumn) {
     showToast('Please select dataset and target column', 'error');
@@ -576,8 +753,8 @@ async function executeHyperparameterTuning() {
   const spinner = document.getElementById('tuning-loading-box');
   const resultsBox = document.getElementById('tuning-results-box');
 
-  spinner.classList.remove('hidden');
-  resultsBox.innerHTML = '';
+  if (spinner) spinner.classList.remove('hidden');
+  if (resultsBox) resultsBox.innerHTML = '';
 
   try {
     const payload = {
@@ -589,23 +766,25 @@ async function executeHyperparameterTuning() {
     };
 
     const result = await apiTuneModel(payload);
-    spinner.classList.add('hidden');
+    if (spinner) spinner.classList.add('hidden');
 
     showToast(`Hyperparameter tuning complete for ${modelName}!`, 'success');
 
-    resultsBox.innerHTML = `
-      <div class="glass-card mb-4" style="background:rgba(99, 102, 241, 0.1); border-color:var(--primary);">
-        <h4>Best Parameters Found:</h4>
-        <pre class="code-block mt-2"><code>${JSON.stringify(result.best_params, null, 2)}</code></pre>
-        <div class="mt-3 flex-justify">
-          <span>Best CV Score: <strong>${result.best_cv_score}</strong></span>
-          <span>Tuning Time: <strong>${result.tuning_time}s</strong></span>
+    if (resultsBox) {
+      resultsBox.innerHTML = `
+        <div class="glass-card mb-4" style="background:rgba(99, 102, 241, 0.1); border-color:var(--primary);">
+          <h4>Best Parameters Found:</h4>
+          <pre class="code-block mt-2"><code>${JSON.stringify(result.best_params, null, 2)}</code></pre>
+          <div class="mt-3 flex-justify">
+            <span>Best CV Score: <strong>${result.best_cv_score}</strong></span>
+            <span>Tuning Time: <strong>${result.tuning_time}s</strong></span>
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }
     loadDashboardStats();
   } catch (err) {
-    spinner.classList.add('hidden');
+    if (spinner) spinner.classList.add('hidden');
     showToast(`Tuning failed: ${err.message}`, 'error');
   }
 }
@@ -615,15 +794,16 @@ async function executeHyperparameterTuning() {
 // ============================================================================
 
 function renderCompareCharts() {
-  if (!state.trainingSession || !state.trainingSession.results) {
-    return;
-  }
+  if (!state.trainingSession || !state.trainingSession.results) return;
 
   const session = state.trainingSession;
   const results = session.results.filter(r => !r.error);
   const labels = results.map(r => r.model_name);
 
-  const ctx = document.getElementById('compare-bar-chart').getContext('2d');
+  const canvas = document.getElementById('compare-bar-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
   if (state.charts.compareBar) state.charts.compareBar.destroy();
 
   const isClassification = session.task_type === 'classification';
@@ -673,7 +853,10 @@ function renderVisualizations() {
   const featureCols = state.trainingSession.feature_columns || [];
   const importanceValues = topModel.feature_importance || [];
 
-  const ctx = document.getElementById('feature-importance-chart').getContext('2d');
+  const canvas = document.getElementById('feature-importance-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
   if (state.charts.featureImp) state.charts.featureImp.destroy();
 
   state.charts.featureImp = new Chart(ctx, {
@@ -705,6 +888,8 @@ function renderVisualizations() {
 
 async function loadModelsForDeploy() {
   const container = document.getElementById('deploy-models-list');
+  if (!container) return;
+
   try {
     const models = await apiGetModels();
     state.models = models;
@@ -769,11 +954,16 @@ function setupPredictionForm(modelId) {
   if (!model) return;
 
   state.selectedPredictModel = model;
-  document.getElementById('predict-active-model-text').innerText = `Active REST API: ${model.name} (#${model.id})`;
-  document.getElementById('predict-btn').disabled = false;
+  const activeModelText = document.getElementById('predict-active-model-text');
+  const predictBtn = document.getElementById('predict-btn');
+
+  if (activeModelText) activeModelText.innerText = `Active REST API: ${model.name} (#${model.id})`;
+  if (predictBtn) predictBtn.disabled = false;
 
   const container = document.getElementById('prediction-inputs-container');
   const featureCols = model.feature_columns || [];
+
+  if (!container) return;
 
   if (featureCols.length === 0) {
     container.innerHTML = `<p class="text-muted">No feature inputs required.</p>`;
@@ -789,7 +979,7 @@ function setupPredictionForm(modelId) {
 }
 
 async function executeLivePrediction(event) {
-  event.preventDefault();
+  if (event) event.preventDefault();
   if (!state.selectedPredictModel) return;
 
   const modelId = state.selectedPredictModel.id;
@@ -804,15 +994,18 @@ async function executeLivePrediction(event) {
   try {
     const result = await apiPredict(modelId, features);
     const resultBox = document.getElementById('prediction-result-box');
-    resultBox.classList.remove('hidden');
+    if (resultBox) resultBox.classList.remove('hidden');
 
-    document.getElementById('prediction-value').innerText = `Predicted Result: ${result.prediction}`;
+    const predVal = document.getElementById('prediction-value');
+    if (predVal) predVal.innerText = `Predicted Result: ${result.prediction}`;
+
     const confBadge = document.getElementById('prediction-confidence-badge');
-
-    if (result.confidence !== null && result.confidence !== undefined) {
-      confBadge.innerText = `Confidence: ${(result.confidence * 100).toFixed(1)}%`;
-    } else {
-      confBadge.innerText = `Model: ${result.model_name}`;
+    if (confBadge) {
+      if (result.confidence !== null && result.confidence !== undefined) {
+        confBadge.innerText = `Confidence: ${(result.confidence * 100).toFixed(1)}%`;
+      } else {
+        confBadge.innerText = `Model: ${result.model_name}`;
+      }
     }
 
     showToast('Prediction generated successfully!', 'success');
@@ -827,6 +1020,8 @@ async function executeLivePrediction(event) {
 
 async function loadModelsForExport() {
   const select = document.getElementById('export-model-select');
+  if (!select) return;
+
   try {
     const models = await apiGetModels();
     state.models = models;
@@ -839,19 +1034,25 @@ async function loadModelsForExport() {
 }
 
 async function onExportModelChange() {
-  const modelId = document.getElementById('export-model-select').value;
+  const select = document.getElementById('export-model-select');
+  if (!select) return;
+
+  const modelId = select.value;
   if (!modelId) return;
 
   try {
     const snippetData = await apiGetCodeSnippet(modelId);
-    document.getElementById('code-snippet-display').innerText = snippetData.code_snippet;
+    const codeDisplay = document.getElementById('code-snippet-display');
+    if (codeDisplay) codeDisplay.innerText = snippetData.code_snippet;
   } catch (err) {
     console.error(err);
   }
 }
 
 async function downloadSelectedModel(format) {
-  const modelId = document.getElementById('export-model-select').value;
+  const select = document.getElementById('export-model-select');
+  const modelId = select?.value;
+
   if (!modelId) {
     showToast('Please select a model first', 'error');
     return;
@@ -873,7 +1074,118 @@ async function downloadSelectedModel(format) {
 }
 
 function copyCodeSnippet() {
-  const codeText = document.getElementById('code-snippet-display').innerText;
-  navigator.clipboard.writeText(codeText);
+  const codeDisplay = document.getElementById('code-snippet-display');
+  if (!codeDisplay) return;
+
+  navigator.clipboard.writeText(codeDisplay.innerText);
   showToast('Python code snippet copied to clipboard!', 'success');
+}
+
+// ============================================================================
+// 12. IMMEDIATE GLOBAL WINDOW EXPOSURES
+// ============================================================================
+window.apiRegister = apiRegister;
+window.apiLogin = apiLogin;
+window.apiGetMe = apiGetMe;
+window.apiUploadDataset = apiUploadDataset;
+window.apiGetDatasets = apiGetDatasets;
+window.apiGetDataset = apiGetDataset;
+window.apiDeleteDataset = apiDeleteDataset;
+window.apiTrainModels = apiTrainModels;
+window.apiGetTrainingSessions = apiGetTrainingSessions;
+window.apiGetTrainingSession = apiGetTrainingSession;
+window.apiTuneModel = apiTuneModel;
+window.apiGetModels = apiGetModels;
+window.apiDeployModel = apiDeployModel;
+window.apiUndeployModel = apiUndeployModel;
+window.apiGetDeployedModels = apiGetDeployedModels;
+window.apiPredict = apiPredict;
+window.apiGetExportInfo = apiGetExportInfo;
+window.apiDownloadModel = apiDownloadModel;
+window.apiGetCodeSnippet = apiGetCodeSnippet;
+
+window.showToast = showToast;
+window.switchTab = switchTab;
+window.openAuthModal = openAuthModal;
+window.closeAuthModal = closeAuthModal;
+window.toggleAuthMode = toggleAuthMode;
+window.handleLoginSubmit = handleLoginSubmit;
+window.handleRegisterSubmit = handleRegisterSubmit;
+window.handleLogout = handleLogout;
+window.updateUserUI = updateUserUI;
+window.loadDashboardStats = loadDashboardStats;
+window.handleFileSelect = handleFileSelect;
+window.uploadDatasetFile = uploadDatasetFile;
+window.loadDatasetsList = loadDatasetsList;
+window.inspectDataset = inspectDataset;
+window.renderDatasetPreview = renderDatasetPreview;
+window.deleteDatasetAction = deleteDatasetAction;
+window.proceedToTrainFromPreview = proceedToTrainFromPreview;
+window.populateTrainDatasetSelect = populateTrainDatasetSelect;
+window.onTrainDatasetChange = onTrainDatasetChange;
+window.launchAutoMLTraining = launchAutoMLTraining;
+window.renderTrainingResults = renderTrainingResults;
+window.viewSessionDetails = viewSessionDetails;
+window.populateTuneDatasetSelect = populateTuneDatasetSelect;
+window.onTuneDatasetChange = onTuneDatasetChange;
+window.executeHyperparameterTuning = executeHyperparameterTuning;
+window.renderCompareCharts = renderCompareCharts;
+window.renderVisualizations = renderVisualizations;
+window.loadModelsForDeploy = loadModelsForDeploy;
+window.deployModelAction = deployModelAction;
+window.undeployModelAction = undeployModelAction;
+window.setupPredictionForm = setupPredictionForm;
+window.executeLivePrediction = executeLivePrediction;
+window.loadModelsForExport = loadModelsForExport;
+window.onExportModelChange = onExportModelChange;
+window.downloadSelectedModel = downloadSelectedModel;
+window.copyCodeSnippet = copyCodeSnippet;
+
+// ============================================================================
+// 13. INITIALIZATION & GLOBAL CLICK INTERCEPTOR
+// ============================================================================
+function initApp() {
+  console.log('🚀 ML Model Marketplace Initialized!');
+  
+  const savedUser = localStorage.getItem('user');
+  const savedToken = localStorage.getItem('token');
+  if (savedUser && savedToken) {
+    try {
+      state.currentUser = JSON.parse(savedUser);
+      updateUserUI();
+    } catch (e) {
+      handleLogout();
+    }
+  }
+
+  document.addEventListener('click', (event) => {
+    const clickable = event.target.closest('button, a, [data-tab], [onclick]');
+    if (!clickable) return;
+
+    const tabAttr = clickable.getAttribute('data-tab');
+    if (tabAttr) {
+      event.preventDefault();
+      switchTab(tabAttr);
+      return;
+    }
+
+    const onclickStr = clickable.getAttribute('onclick');
+    if (onclickStr && onclickStr.includes('switchTab')) {
+      event.preventDefault();
+      const match = onclickStr.match(/switchTab\(['"](.*?)['"]\)/);
+      if (match && match[1]) {
+        switchTab(match[1]);
+      }
+    }
+  });
+
+  loadDashboardStats();
+  loadDatasetsList();
+  switchTab('dashboard');
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
 }
