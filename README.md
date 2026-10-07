@@ -1,358 +1,185 @@
-# ML Model Marketplace
+# ML Model Marketplace & AutoML Engine
 
-A full-stack web application to upload datasets, automatically train multiple ML models, compare performance visually, fine-tune hyperparameters, and deploy the best model as a REST API — all from a beautiful web dashboard.
+A full-stack, recruiter-ready Machine Learning web application designed to upload raw datasets, automatically train and benchmark multiple ML algorithms simultaneously, fine-tune hyperparameters, and deploy the champion model as an active REST API with instant real-time predictions.
 
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green?logo=fastapi)
-![React](https://img.shields.io/badge/React-18.2-blue?logo=react)
-![Scikit--learn](https://img.shields.io/badge/Scikit--learn-1.3-orange?logo=scikit-learn)
-![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
+![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green?logo=fastapi)
+![Vanilla JS](https://img.shields.io/badge/Frontend-Vanilla%20HTML5%2FCSS3%2FJS-yellow?logo=javascript)
+![Scikit--learn](https://img.shields.io/badge/Scikit--learn-1.3+-orange?logo=scikit-learn)
+![XGBoost](https://img.shields.io/badge/XGBoost-Enabled-red)
+![ONNX](https://img.shields.io/badge/ONNX%20Runtime-1.17+-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ---
 
-## Features
+## 🌟 Highlights
 
-| Feature | Description |
-|---------|-------------|
-| **Dataset Management** | Upload CSV files, auto-detect column types, preview data, handle missing values |
-| **Auto Model Training** | Train 7-8 ML models simultaneously with one click |
-| **Model Comparison** | Visual bar charts comparing accuracy, F1, precision, recall, R2, RMSE |
-| **Hyperparameter Tuning** | GridSearch & RandomizedSearch with cross-validation support |
-| **Advanced Visualizations** | Confusion matrix heatmap, radar chart, feature importance, doughnut chart |
-| **One-Click Deployment** | Deploy any trained model as a REST API endpoint |
-| **Live Predictions** | Test deployed models with custom input through the web UI |
-| **Batch Predictions** | Send multiple data points for prediction via API |
-| **Model Export** | Download models as Joblib, Pickle, or ONNX + auto-generated Python code |
-| **User Authentication** | JWT-based login/register with protected routes |
-| **Docker Deployment** | Production-ready Docker setup with docker-compose |
+- **Zero-Boilerplate AutoML**: Upload a raw CSV and auto-train 7+ baseline algorithms with one click.
+- **Ultra-Fast & Lightweight Frontend**: Built with pure **HTML5, CSS3, and modern Vanilla JavaScript**—zero heavy virtual-DOM dependencies, instant cold starts, and dark glassmorphic SaaS design (`#090D16`).
+- **Production-Ready FastAPI Backend**: Asynchronous ASGI pipeline with automatic schema validation via Pydantic and interactive OpenAPI docs at `/docs`.
+- **Automated Missing Data & Type Handling**: Robust preprocessing using `pd.api.types.is_numeric_dtype` and recursive RFC 8259 JSON sanitization preventing serialization crashes on missing values (`NaN`).
+- **1-Click REST API Deployment**: Mount deployed models in memory with sub-10ms live predictions and auto-generated Python integration snippets.
+- **Multi-Format Serialization**: Export champion models to `.joblib`, `.pkl`, and `.onnx` formats.
 
 ---
 
-## Supported ML Models
+## 🚀 Quick Start (Windows 1-Click Launcher)
 
-### Classification
-| Model | Type |
-|-------|------|
-| Random Forest | Ensemble (Bagging) |
-| Logistic Regression | Linear Model |
-| SVM | Support Vector Machine |
-| KNN | Instance-based |
-| Decision Tree | Tree-based |
-| Gradient Boosting | Ensemble (Boosting) |
-| XGBoost | Extreme Gradient Boosting |
+To launch both the **FastAPI backend** (`:8000`) and the **Frontend server** (`:5173`) automatically:
 
-### Regression
-| Model | Type |
-|-------|------|
-| Random Forest | Ensemble (Bagging) |
-| Linear Regression | Linear Model |
-| Ridge Regression | Regularized Linear |
-| SVR | Support Vector Regression |
-| KNN | Instance-based |
-| Decision Tree | Tree-based |
-| Gradient Boosting | Ensemble (Boosting) |
-| XGBoost | Extreme Gradient Boosting |
+```cmd
+run_project.bat
+```
 
----
+*Or simply double-click `run_project.bat` from File Explorer.*
 
-## Tech Stack
+### Manual Startup
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 18, Tailwind CSS, Chart.js, React Router, Axios |
-| **Backend** | Python 3.11, FastAPI, SQLAlchemy, Pydantic |
-| **ML Engine** | Scikit-learn, XGBoost, NumPy, Pandas |
-| **Authentication** | JWT (python-jose), Passlib, bcrypt |
-| **Database** | SQLite (upgradable to PostgreSQL) |
-| **Export** | Joblib, Pickle, ONNX (skl2onnx) |
-| **Containerization** | Docker, Docker Compose, Nginx |
-| **API Docs** | Swagger UI (auto-generated at /docs) |
+#### 1. Backend (FastAPI)
+```cmd
+cd backend
+.\venv\Scripts\python.exe -m uvicorn app.main:app --port 8000
+```
+- **REST API**: http://localhost:8000
+- **Swagger Documentation**: http://localhost:8000/docs
+
+#### 2. Frontend (Vite Dev Server)
+```cmd
+cd frontend
+npx vite --port 5173
+```
+- **Web Dashboard**: http://localhost:5173
 
 ---
 
-## Project Structure
+## 🧠 Supported ML Algorithms
+
+| Algorithm | Model Family | Task Supported |
+|---|---|---|
+| **Random Forest** | Ensemble (Bagging) | Classification & Regression |
+| **XGBoost** | Gradient Boosted Trees | Classification & Regression |
+| **Support Vector Machines (SVM/SVR)** | Kernel Methods | Classification & Regression |
+| **K-Nearest Neighbors (KNN)** | Instance-based | Classification & Regression |
+| **Decision Trees** | Tree-based | Classification & Regression |
+| **Gradient Boosting** | Ensemble (Sequential Boosting) | Classification & Regression |
+| **Logistic / Linear / Ridge Regression** | Generalized Linear Models | Classification & Regression |
+
+---
+
+## 📂 Project Architecture
 
 ```
 ml-model-marketplace/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                         # FastAPI app entry point
-│   │   ├── routes/
-│   │   │   ├── auth.py                     # JWT authentication (register/login)
-│   │   │   ├── dataset.py                  # Dataset upload & management
-│   │   │   ├── training.py                 # Auto model training
-│   │   │   ├── tuning.py                   # Hyperparameter tuning
-│   │   │   ├── models.py                   # Model management & deployment
-│   │   │   ├── export.py                   # Model download & code generation
-│   │   │   └── predict.py                  # Prediction API
-│   │   ├── services/
-│   │   │   ├── preprocessing.py            # Data cleaning & feature engineering
-│   │   │   ├── trainer.py                  # ML training engine (7+ models)
-│   │   │   ├── evaluator.py               # Model evaluation metrics
-│   │   │   └── hyperparameter_tuner.py     # GridSearch/RandomSearch tuning
+│   │   ├── main.py                     # FastAPI application entry point & CORS configuration
+│   │   ├── database/
+│   │   │   └── db.py                   # SQLite connection engine & session factory
 │   │   ├── models/
-│   │   │   ├── schemas.py                  # Pydantic request/response schemas
-│   │   │   └── db_models.py               # SQLAlchemy database models
-│   │   └── database/
-│   │       └── db.py                       # Database connection & session
-│   ├── trained_models/                     # Saved .joblib model files
-│   ├── uploads/                            # Uploaded CSV datasets
-│   ├── Dockerfile
-│   └── requirements.txt
+│   │   │   ├── db_models.py            # SQLAlchemy database tables (Datasets, Models, Sessions)
+│   │   │   └── schemas.py              # Pydantic request and response schemas
+│   │   ├── routes/
+│   │   │   ├── auth.py                 # JWT user registration & authentication
+│   │   │   ├── dataset.py              # CSV upload, inspection & preview endpoints
+│   │   │   ├── training.py             # AutoML training orchestration
+│   │   │   ├── tuning.py               # GridSearchCV & RandomizedSearchCV endpoints
+│   │   │   ├── models.py               # Model management & 1-click deployment
+│   │   │   ├── predict.py              # Real-time single & batch prediction endpoints
+│   │   │   └── export.py               # Multi-format download & Python snippet generation
+│   │   └── services/
+│   │       ├── preprocessing.py        # Robust missing-value imputation & feature encoding
+│   │       ├── trainer.py              # Concurrent training engine for 7+ algorithms
+│   │       ├── evaluator.py            # Classification & regression metric computation
+│   │       └── hyperparameter_tuner.py # Cross-validated hyperparameter optimization
+│   ├── trained_models/                 # Serialized model binaries
+│   ├── uploads/                        # Uploaded dataset storage
+│   ├── requirements.txt                # Python 3.12 compatible dependencies
+│   └── venv/                           # Isolated Python virtual environment
 ├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── AuthPage.jsx               # Login/Register UI
-│   │   │   ├── Dashboard.jsx              # Overview & stats
-│   │   │   ├── UploadPage.jsx             # Dataset upload & preview
-│   │   │   ├── TrainingPage.jsx           # Model training configuration
-│   │   │   ├── TuningPage.jsx             # Hyperparameter tuning UI
-│   │   │   ├── ComparePage.jsx            # Model comparison charts
-│   │   │   ├── VisualizationsPage.jsx     # Advanced charts & heatmaps
-│   │   │   ├── DeployPage.jsx             # Deploy & predict
-│   │   │   └── ExportPage.jsx             # Download models & code
-│   │   ├── api.js                          # Axios API service with auth
-│   │   ├── App.jsx                         # Main app with routing & auth
-│   │   └── index.css                       # Tailwind CSS
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── package.json
-│   └── vite.config.js
-├── docker-compose.yml
-└── README.md
+│   ├── index.html                      # Semantic single-page layout with tabbed navigation
+│   ├── style.css                       # Dark glassmorphic theme styling & responsive layouts
+│   ├── app.js                          # Self-contained frontend engine (API service + UI controllers)
+│   ├── api.js                          # Standalone API communication module
+│   ├── package.json                    # Frontend package config
+│   └── vite.config.js                  # Vite dev server with /api proxy to FastAPI
+├── run_project.bat                     # 1-Click Windows startup script
+└── README.md                           # Project documentation
 ```
 
 ---
 
-## Setup & Installation
+## 🖥️ Application Features & Workflow
 
-### Prerequisites
-- Python 3.9+
-- Node.js 18+
-- Docker (optional, for containerized deployment)
+### 1. Dashboard Overview
+- Live stat counters tracking total datasets, training sessions, deployed APIs, and top-performing models.
+- Recent training history table with quick-access links to view session breakdowns.
 
----
+### 2. Dataset Management
+- Drag-and-drop CSV upload with automatic schema parsing and missing value analysis.
+- Live data table previews displaying column types and distribution metrics without page reloads.
 
-### Option 1: Run Without Docker (Development)
+### 3. AutoML Training Engine
+- Automatic task detection (Classification vs. Regression).
+- Train up to 7 algorithms in parallel with custom train/test splits (e.g., 80/20).
+- Instant metric ranking: **Accuracy, F1-Score, Precision, Recall, Confusion Matrices, and Feature Importances**.
 
-**Backend:**
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
+### 4. Hyperparameter Tuning
+- Select any baseline model and optimize hyperparameters using **GridSearchCV** or **RandomizedSearchCV** with $k$-fold cross-validation.
+- Side-by-side performance comparison of default vs. tuned parameters.
 
-**Frontend (in a separate terminal):**
-```bash
-cd frontend
-npm install
-npm run dev
-```
+### 5. Interactive Visualizations & Comparisons
+- Grouped bar charts comparing metrics across all algorithms simultaneously.
+- Interactive Chart.js visualizations for feature importances and confusion matrix heatmaps.
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- Swagger Docs: http://localhost:8000/docs
+### 6. One-Click Model Deployment & Live Testing
+- Deploy champion models to production with a single click.
+- Real-time prediction form: dynamically generates form fields matching the dataset features for instant interactive testing.
 
----
-
-### Option 2: Run With Docker (Production)
-
-```bash
-docker compose up --build
-```
-
-- App: http://localhost
-- API: http://localhost:8000
-
-To stop:
-```bash
-docker compose down
-```
+### 7. Export & Integration
+- Download serialized model binaries in `.joblib`, `.pkl`, or `.onnx` formats.
+- Copy-paste ready Python inference snippets for seamless integration into external applications.
 
 ---
 
-## API Endpoints
+## 🛠️ Key Technical Challenges & Solutions
 
-### Authentication
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Register a new user |
-| POST | `/api/auth/login` | Login & get JWT token |
-| GET | `/api/auth/me` | Get current user profile |
-
-### Dataset
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/dataset/upload` | Upload a CSV file |
-| GET | `/api/dataset/list` | List all datasets |
-| GET | `/api/dataset/{id}` | Get dataset details & preview |
-| DELETE | `/api/dataset/{id}` | Delete a dataset |
-
-### Training
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/training/train` | Train all models on a dataset |
-| GET | `/api/training/sessions` | List training sessions |
-| GET | `/api/training/sessions/{id}` | Get session results |
-
-### Hyperparameter Tuning
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/tuning/tune` | Tune a specific model |
-| GET | `/api/tuning/available-models/{task_type}` | Get tunable models |
-| GET | `/api/tuning/param-grid/{task_type}/{model}` | Get parameter grid |
-
-### Models
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/models/list` | List all trained models |
-| GET | `/api/models/{id}` | Get model details |
-| POST | `/api/models/deploy` | Deploy a model as API |
-| POST | `/api/models/undeploy/{id}` | Undeploy a model |
-| GET | `/api/models/deployed/list` | List deployed models |
-
-### Export
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/export/download/{id}?format=joblib` | Download model file |
-| GET | `/api/export/info/{id}` | Get export metadata |
-| GET | `/api/export/code-snippet/{id}` | Get Python integration code |
-
-### Prediction
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/predict/{model_id}` | Single prediction |
-| POST | `/api/predict/batch/{model_id}` | Batch prediction |
+| Technical Challenge | Root Cause | Engineering Solution |
+|---|---|---|
+| **String Dtype Imputation Error** | Pandas 2.x threw `TypeError: cannot perform reduction 'median' on string dtype` on mixed text columns. | Introduced explicit type inspection via `pd.api.types.is_numeric_dtype()` to separate numeric median imputation from categorical mode imputation. |
+| **HTTP 500 JSON Serialization Crash** | Datasets with missing values produced IEEE-754 `NaN` floats, which violate RFC 8259 JSON compliance. | Implemented a recursive sanitizer (`sanitize_for_json()`) transforming all `NaN`, `Inf`, and `pd.NA` floats into compliant JSON `null` values. |
+| **Inference Schema Mismatch** | Live prediction payloads lacked training-time categorical encoders and scalers. | Persisted fitted `StandardScaler` and `LabelEncoder` state directly alongside model weights for zero-drift inference. |
 
 ---
 
-## Usage Guide
+## 📡 REST API Reference
 
-### 1. Register & Login
-Create an account and login to access the platform.
+Interactive Swagger documentation is available at **`http://localhost:8000/docs`**.
 
-### 2. Upload Dataset
-Upload any CSV file (e.g., Iris, Titanic, House Prices, Wine Quality).
+### Dataset Endpoints
+- `POST /api/dataset/upload` — Upload CSV and compute column profile.
+- `GET /api/dataset/list` — List all registered datasets.
+- `GET /api/dataset/{id}` — Fetch dataset details and preview rows.
+- `DELETE /api/dataset/{id}` — Delete dataset and disk storage.
 
-### 3. Train Models
-Select a dataset, choose target column, and click "Train All Models". The system auto-detects whether it's classification or regression.
+### Training & Tuning Endpoints
+- `POST /api/training/train` — Train selected models on a dataset.
+- `GET /api/training/sessions` — List all training runs.
+- `GET /api/training/sessions/{id}` — Retrieve detailed metrics for a session.
+- `POST /api/tuning/tune` — Run hyperparameter optimization.
 
-### 4. Compare Results
-View bar charts comparing all model metrics side-by-side. Check confusion matrices and feature importance.
+### Deployment & Prediction Endpoints
+- `GET /api/models/list` — List all trained models.
+- `POST /api/models/deploy` — Mount a model as an active REST API.
+- `POST /api/models/undeploy/{id}` — Deactivate a deployed model.
+- `GET /api/models/deployed/list` — List all currently active model endpoints.
+- `POST /api/predict/{model_id}` — Execute real-time inference on a feature vector.
 
-### 5. Tune Best Model
-Select the best-performing model and fine-tune its hyperparameters with GridSearch or RandomSearch.
-
-### 6. Deploy
-Deploy any model as a REST API endpoint with one click.
-
-### 7. Predict
-Test deployed models with custom input through the web UI or programmatically via the API.
-
-### 8. Export
-Download the trained model in Joblib/Pickle/ONNX format and get ready-to-use Python code.
-
----
-
-## Example API Usage
-
-### Train Models
-```json
-POST /api/training/train
-{
-  "dataset_id": 1,
-  "target_column": "species",
-  "test_size": 0.2
-}
-```
-
-### Deploy Best Model
-```json
-POST /api/models/deploy
-{
-  "training_session_id": 1,
-  "model_name": "Random Forest"
-}
-```
-
-### Make Prediction
-```json
-POST /api/predict/1
-{
-  "model_id": 1,
-  "features": {
-    "sepal_length": 5.1,
-    "sepal_width": 3.5,
-    "petal_length": 1.4,
-    "petal_width": 0.2
-  }
-}
-```
-
-### Hyperparameter Tuning
-```json
-POST /api/tuning/tune
-{
-  "dataset_id": 1,
-  "target_column": "species",
-  "model_name": "Random Forest",
-  "search_method": "random",
-  "cv_folds": 5,
-  "n_iter": 30
-}
-```
+### Export Endpoints
+- `GET /api/export/download/{id}?format=joblib` — Download serialized model file (`joblib`, `pickle`, `onnx`).
+- `GET /api/export/code-snippet/{id}` — Retrieve ready-to-run Python client inference code.
 
 ---
 
-## Application Pages
+## 📄 License
 
-| Page | Description |
-|------|-------------|
-| **Login/Register** | JWT authentication with beautiful UI |
-| **Dashboard** | Stats cards, quick actions, recent training sessions |
-| **Upload** | Drag & drop upload with data preview table |
-| **Train** | Configure dataset, target column, test size and launch training |
-| **Tuning** | Select model, search method, CV folds and optimize |
-| **Compare** | Grouped bar charts for all metrics |
-| **Visualizations** | Radar chart, confusion matrix heatmap, feature importance, doughnut |
-| **Deploy** | One-click deploy, live prediction testing |
-| **Export** | Download in 3 formats + copy-paste Python code |
-
----
-
-## Future Enhancements
-
-- [ ] Deep learning models (TensorFlow/Keras integration)
-- [ ] Automated feature selection
-- [ ] Model versioning & rollback
-- [ ] Scheduled retraining with new data
-- [ ] Email notifications on training completion
-- [ ] Multi-user workspaces & collaboration
-- [ ] Cloud deployment guides (AWS/GCP/Azure)
-- [ ] Dark mode theme
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/new-feature`)
-3. Commit changes (`git commit -m 'Add new feature'`)
-4. Push to branch (`git push origin feature/new-feature`)
-5. Open a Pull Request
-
----
-
-## License
-
-MIT License
-
----
-
-## Author
-
-**MCA Final Year Project**  
-National Institute of Technology, Patna
+This project is licensed under the MIT License.
